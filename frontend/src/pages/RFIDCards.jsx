@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { userService } from '../services/api';
+import api from '../services/api';
 import { Card, Button, Input } from '../components/UIComponents';
 import { Wifi, Plus } from 'lucide-react';
 
@@ -16,10 +17,37 @@ const RFIDCards = () => {
     year_level: '1st Year',
   });
   const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState(null);
+  const pollIntervalRef = useRef(null);
 
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  // Poll for pending RFID when scanning
+  useEffect(() => {
+    if (scanning) {
+      pollIntervalRef.current = setInterval(async () => {
+        try {
+          const response = await api.get('/attendance/pending-rfid');
+          if (response.data.received && response.data.uid) {
+            setFormData({ ...formData, rfid_uid: response.data.uid });
+            setScanning(false);
+            setScanError(null);
+            clearInterval(pollIntervalRef.current);
+          }
+        } catch (error) {
+          console.error('Error polling for RFID:', error);
+        }
+      }, 500); // Poll every 500ms
+
+      return () => {
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+        }
+      };
+    }
+  }, [scanning, formData]);
 
   const fetchUsers = async () => {
     try {
@@ -32,12 +60,23 @@ const RFIDCards = () => {
 
   const handleScan = () => {
     setScanning(true);
-    // Simulate RFID scan
-    setTimeout(() => {
-      const mockUID = Math.random().toString(16).substr(2, 16).toUpperCase();
-      setFormData({ ...formData, rfid_uid: mockUID });
-      setScanning(false);
-    }, 1000);
+    setScanError(null);
+  };
+
+  const handleCancelScan = async () => {
+    setScanning(false);
+    setScanError(null);
+    
+    // Clear pending RFID on the backend
+    try {
+      await api.delete('/attendance/pending-rfid');
+    } catch (error) {
+      console.error('Error clearing pending RFID:', error);
+    }
+    
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -49,6 +88,14 @@ const RFIDCards = () => {
       } else {
         await userService.create(formData);
       }
+      
+      // Clear pending RFID after successful registration
+      try {
+        await api.delete('/attendance/pending-rfid');
+      } catch (error) {
+        console.error('Error clearing pending RFID:', error);
+      }
+
       fetchUsers();
       setShowForm(false);
       setFormData({
@@ -62,8 +109,34 @@ const RFIDCards = () => {
       });
     } catch (error) {
       console.error('Failed to register RFID card:', error);
-      alert('Error registering RFID card. Check that student number format is correct (XX-XXXXX)');
+      const errorMessage = error.response?.data?.message || 'Error registering RFID card. Check that student number format is correct (XX-XXXXX)';
+      alert(errorMessage);
     }
+  };
+
+  const handleCloseForm = async () => {
+    // Clear pending RFID when closing form
+    if (scanning) {
+      await handleCancelScan();
+    }
+    
+    try {
+      await api.delete('/attendance/pending-rfid');
+    } catch (error) {
+      console.error('Error clearing pending RFID:', error);
+    }
+
+    setShowForm(false);
+    setFormData({
+      rfid_uid: '',
+      surname: '',
+      firstname: '',
+      middlename: '',
+      age: '',
+      student_number: '',
+      year_level: '1st Year',
+    });
+    setScanError(null);
   };
 
   return (
@@ -91,18 +164,40 @@ const RFIDCards = () => {
                   value={formData.rfid_uid}
                   readOnly
                   className="text-center font-mono"
-                  placeholder="RFID UID will appear here"
+                  placeholder={scanning ? 'Waiting for card...' : 'RFID UID will appear here'}
                 />
-                <Button
-                  type="button"
-                  onClick={handleScan}
-                  disabled={scanning}
-                  className="self-end"
-                >
-                  {scanning ? 'Scanning...' : 'Scan Card'}
-                </Button>
+                {!scanning ? (
+                  <Button
+                    type="button"
+                    onClick={handleScan}
+                    disabled={scanning}
+                    className="self-end"
+                  >
+                    <Wifi size={16} className="mr-2" />
+                    Scan Card
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    onClick={handleCancelScan}
+                    variant="secondary"
+                    className="self-end"
+                  >
+                    Cancel
+                  </Button>
+                )}
               </div>
-              <p className="text-xs text-gray-500">Click "Scan Card" and place student's card near the reader</p>
+              {scanning ? (
+                <div className="flex items-center gap-2">
+                  <div className="animate-pulse w-2 h-2 bg-green-500 rounded-full"></div>
+                  <p className="text-xs text-green-400">Waiting for card... Place it near the reader</p>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500">Click "Scan Card" and place student's card near the reader</p>
+              )}
+              {scanError && (
+                <p className="text-xs text-red-400">{scanError}</p>
+              )}
             </div>
 
             {formData.rfid_uid && (
@@ -154,7 +249,7 @@ const RFIDCards = () => {
             )}
 
             <div className="flex gap-2 justify-end">
-              <Button variant="secondary" onClick={() => setShowForm(false)}>
+              <Button variant="secondary" onClick={handleCloseForm}>
                 Cancel
               </Button>
               <Button type="submit" disabled={!formData.rfid_uid || !formData.surname || !formData.firstname}>

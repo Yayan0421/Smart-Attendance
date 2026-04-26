@@ -17,8 +17,10 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 const char* ssid = "Wokwi-GUEST";
 const char* password = "";
 
-// 🔥 YOUR DEPLOYED BACKEND
-const char* serverURL = "https://smart-attendance-89wy.onrender.com/rfid-scan";
+// 🔥 BACKEND URL - Choose one:
+// For local testing: http://localhost:5000/rfid-scan
+// For deployed: https://smart-attendance-89wy.onrender.com/rfid-scan
+const char* serverURL = "http://localhost:5000/rfid-scan";
 
 void setup() {
   Serial.begin(115200);

@@ -1,23 +1,21 @@
 import { Sequelize } from 'sequelize';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 dotenv.config();
 
-// ⚠️  IMPORTANT: Backend uses Supabase REST API for all operations
-// Sequelize is kept for compatibility but NOT used for production
-// All RFID data goes to Supabase via REST API
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-let sequelize;
-
-// Dummy SQLite connection (not used in production)
-const initDummyDB = () => {
-  return new Sequelize({
-    dialect: 'sqlite',
-    storage: ':memory:',
-    logging: false,
-  });
-};
-
-sequelize = initDummyDB();
+const sequelize = new Sequelize({
+  dialect: 'sqlite',
+  storage: path.join(__dirname, '../../rfid_attendance.db'),
+  logging: false,
+  define: {
+    timestamps: true,
+    underscored: true,
+  }
+});
 
 export default sequelize;

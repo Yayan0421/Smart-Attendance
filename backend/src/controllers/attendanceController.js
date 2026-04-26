@@ -2,6 +2,88 @@ import User from '../models/User.js';
 import Attendance from '../models/Attendance.js';
 import Event from '../models/Event.js';
 
+// In-memory storage for pending RFID registrations
+let pendingRFID = {
+  uid: null,
+  timestamp: null,
+};
+
+export const receivePendingRFID = async (req, res) => {
+  try {
+    const { uid } = req.body;
+
+    if (!uid) {
+      return res.status(400).json({ 
+        status: 'error',
+        message: 'RFID UID required' 
+      });
+    }
+
+    // Check if UID is already registered
+    const existingUser = await User.findOne({ where: { rfid_uid: uid } });
+    if (existingUser) {
+      return res.status(400).json({ 
+        status: 'duplicate',
+        message: 'This RFID card is already registered',
+        name: `${existingUser.firstname} ${existingUser.surname}`,
+        action: 'Already Registered'
+      });
+    }
+
+    // Store the pending RFID
+    pendingRFID = {
+      uid,
+      timestamp: Date.now(),
+    };
+
+    console.log(`Pending RFID received: ${uid}`);
+
+    res.status(200).json({
+      status: 'pending',
+      message: 'RFID received and waiting for registration',
+      name: 'Pending Registration',
+      action: 'Complete in App',
+      uid,
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      status: 'error',
+      message: 'Error receiving RFID', 
+      error: error.message 
+    });
+  }
+};
+
+export const getPendingRFID = async (req, res) => {
+  try {
+    // Check if pending RFID is still valid (within last 30 seconds)
+    if (pendingRFID.uid && Date.now() - pendingRFID.timestamp < 30000) {
+      res.status(200).json({
+        uid: pendingRFID.uid,
+        received: true,
+      });
+    } else {
+      // Clear expired pending RFID
+      pendingRFID = { uid: null, timestamp: null };
+      res.status(200).json({
+        uid: null,
+        received: false,
+      });
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching pending RFID', error: error.message });
+  }
+};
+
+export const clearPendingRFID = async (req, res) => {
+  try {
+    pendingRFID = { uid: null, timestamp: null };
+    res.status(200).json({ message: 'Pending RFID cleared' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error clearing pending RFID', error: error.message });
+  }
+};
+
 export const scanAttendance = async (req, res) => {
   try {
     const { rfid_uid, event_id } = req.body;
