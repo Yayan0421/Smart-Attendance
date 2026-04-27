@@ -50,7 +50,7 @@ export const Button = ({ children, variant = 'primary', className = '', ...props
   );
 };
 
-export const Input = ({ label, error, className = '', ...props }) => {
+export const Input = ({ label, error, className = '', autoComplete, ...props }) => {
   return (
     <div className="mb-4">
       {label && <label className="block text-sm font-medium text-gray-300 mb-2">{label}</label>}
@@ -58,6 +58,7 @@ export const Input = ({ label, error, className = '', ...props }) => {
         className={`w-full bg-[#001a33] border border-[#0052A2]/30 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-[#0052A2] focus:ring-1 focus:ring-[#0052A2]/50 transition-all ${className} ${
           error ? 'border-red-500' : ''
         }`}
+        autoComplete={autoComplete}
         {...props}
       />
       {error && <p className="text-red-400 text-xs mt-1">{error}</p>}

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import {
   LayoutDashboard,
@@ -15,10 +15,12 @@ import {
 
 const Sidebar = ({ open, setOpen }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { logout } = useAuth();
+  
   const handleLogout = () => {
     logout();
-    window.location.href = '/login';
+    navigate('/login', { replace: true });
   };
 
   const menuItems = [

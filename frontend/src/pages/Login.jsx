@@ -48,12 +48,14 @@ const Login = () => {
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} autoComplete="on">
           <div className="mb-4">
             <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">Email</label>
             <input
               id="email"
               type="email"
+              name="email"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full bg-[#001a33] border border-[#0052A2]/30 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-[#0052A2] focus:ring-2 focus:ring-[#0052A2]/20 transition-all"
@@ -67,6 +69,8 @@ const Login = () => {
             <input
               id="password"
               type="password"
+              name="password"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full bg-[#001a33] border border-[#0052A2]/30 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-[#0052A2] focus:ring-2 focus:ring-[#0052A2]/20 transition-all"
