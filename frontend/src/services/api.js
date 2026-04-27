@@ -1,7 +1,17 @@
 import axios from 'axios';
 
+// Determine API base URL based on environment
+const getApiBaseUrl = () => {
+  // In development, use relative paths or localhost
+  // In production, use the same origin as the page
+  if (import.meta.env.MODE === 'production') {
+    return '';
+  }
+  return 'http://localhost:5000';
+};
+
 const api = axios.create({
-  baseURL: 'http://localhost:5000',
+  baseURL: getApiBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
@@ -13,6 +23,10 @@ api.interceptors.request.use(
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    // Mark local network requests if targeting localhost/private IPs
+    if (config.baseURL?.includes('localhost') || config.baseURL?.includes('127.0.0.1')) {
+      config.headers['X-Local-Network-Request'] = 'true';
     }
     return config;
   },

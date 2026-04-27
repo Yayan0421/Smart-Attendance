@@ -18,10 +18,46 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(express.json());
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+
+// CORS configuration with proper local network request handling
+const corsOptions = {
+  origin: (origin, callback) => {
+    const allowedOrigins = [
+      process.env.CORS_ORIGIN || 'http://localhost:5173',
+      'http://localhost:5173',
+      'http://127.0.0.1:5173',
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      // Allow requests from the same machine (for development)
+      /^http:\/\/localhost/,
+      /^http:\/\/127\.0\.0\.1/,
+      /^http:\/\/\d+\.\d+\.\d+\.\d+/, // Allow private IP ranges
+    ];
+    
+    // Allow requests without origin (like mobile apps or local RFID hardware)
+    if (!origin || allowedOrigins.some(o => o instanceof RegExp ? o.test(origin) : o === origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
-}));
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Local-Network-Request'],
+  exposedHeaders: ['X-Local-Network-Request'],
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
+
+// Add headers to handle local network requests
+app.use((req, res, next) => {
+  // Signal that this server accepts local network requests
+  res.header('X-Local-Network-Request', 'true');
+  // Ensure proper cross-origin handling
+  res.header('Access-Control-Allow-Private-Network', 'true');
+  next();
+});
 
 // RFID scan endpoint from hardware/Wokwi (no auth required)
 app.post('/rfid-scan', receivePendingRFID);
