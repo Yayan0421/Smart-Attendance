@@ -1,4 +1,3 @@
-import { Op } from 'sequelize';
 import User from '../models/User.js';
 import Attendance from '../models/Attendance.js';
 import Event from '../models/Event.js';
@@ -16,112 +15,40 @@ export const receivePendingRFID = async (req, res) => {
     if (!uid) {
       return res.status(400).json({ 
         status: 'error',
-        message: 'RFID UID required',
-        name: 'Error',
-        action: 'Invalid UID'
+        message: 'RFID UID required' 
       });
     }
 
-    // Find user by RFID UID
-    const user = await User.findOne({ where: { rfid_uid: uid } });
-    
-    if (!user) {
-      // UID not registered - store as pending registration
-      pendingRFID = {
-        uid,
-        timestamp: Date.now(),
-      };
-
-      console.log(`Pending RFID received: ${uid}`);
-
-      return res.status(404).json({
-        status: 'pending',
-        message: 'RFID not registered',
-        name: 'Unknown User',
-        action: 'Register in App',
-        uid,
-      });
-    }
-
-    // User found - try to record attendance at current active event
-    const now = new Date();
-    const activeEvent = await Event.findOne({
-      where: {
-        date: {
-          [Op.lte]: now,
-        },
-      },
-      order: [['date', 'DESC']],
-    });
-
-    if (!activeEvent) {
-      return res.status(200).json({
-        status: 'success',
-        name: `${user.firstname} ${user.surname}`,
-        action: 'No Active Event',
-        message: 'User found but no active event',
-      });
-    }
-
-    // Check for duplicate attendance in last 30 minutes
-    const recentScan = await Attendance.findOne({
-      where: {
-        user_id: user.id,
-        event_id: activeEvent.id,
-      },
-    });
-
-    if (recentScan) {
-      return res.status(200).json({
+    // Check if UID is already registered
+    const existingUser = await User.findOne({ where: { rfid_uid: uid } });
+    if (existingUser) {
+      return res.status(400).json({ 
         status: 'duplicate',
-        name: `${user.firstname} ${user.surname}`,
-        action: 'Already Checked In',
-        message: 'Duplicate scan detected',
+        message: 'This RFID card is already registered',
+        name: `${existingUser.firstname} ${existingUser.surname}`,
+        action: 'Already Registered'
       });
     }
 
-    // Determine if user is on time or late
-    const loginTime = new Date(activeEvent.date);
-    const [hours, minutes] = activeEvent.login_time.split(':');
-    loginTime.setHours(parseInt(hours), parseInt(minutes), 0);
+    // Store the pending RFID
+    pendingRFID = {
+      uid,
+      timestamp: Date.now(),
+    };
 
-    let status = 'Present';
-    let action = 'Checked In';
-    let fine = 0;
+    console.log(`Pending RFID received: ${uid}`);
 
-    if (now > loginTime) {
-      status = 'Late';
-      action = 'Late Check In';
-      fine = activeEvent.fine_amount || 0;
-    }
-
-    // Record attendance
-    const attendance = await Attendance.create({
-      user_id: user.id,
-      event_id: activeEvent.id,
-      time_in: now,
-      status,
-      fine,
+    res.status(200).json({
+      status: 'pending',
+      message: 'RFID received and waiting for registration',
+      name: 'Pending Registration',
+      action: 'Complete in App',
+      uid,
     });
-
-    console.log(`Attendance recorded for ${user.firstname} ${user.surname}: ${status}`);
-
-    res.status(201).json({
-      status: 'success',
-      name: `${user.firstname} ${user.surname}`,
-      action: action,
-      message: `${status} - Fine: $${fine}`,
-      time: now.toLocaleTimeString(),
-      eventName: activeEvent.name,
-    });
-
   } catch (error) {
-    console.error('Error in receivePendingRFID:', error);
     res.status(500).json({ 
       status: 'error',
-      message: 'Error processing RFID',
-      name: 'System Error',
-      action: 'Try Again',
+      message: 'Error receiving RFID', 
       error: error.message 
     });
   }
