@@ -2,12 +2,19 @@ import axios from 'axios';
 
 // Determine API base URL based on environment
 const getApiBaseUrl = () => {
-  // In development, use relative paths or localhost
-  // In production, use the same origin as the page
-  if (import.meta.env.MODE === 'production') {
-    return '';
+  // Check for explicit API URL from environment variables
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL;
   }
-  return 'http://localhost:5000';
+  
+  // In development, use localhost
+  if (import.meta.env.MODE === 'development') {
+    return import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  }
+  
+  // In production, try to use relative paths (if frontend and backend on same origin)
+  // Otherwise, must set VITE_API_BASE_URL in production environment
+  return '';
 };
 
 const api = axios.create({
