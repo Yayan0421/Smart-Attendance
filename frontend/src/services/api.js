@@ -2,18 +2,21 @@ import axios from 'axios';
 
 // Determine API base URL based on environment
 const getApiBaseUrl = () => {
-  // Check for explicit API URL from environment variables
+  // Check for explicit API URL from environment variables (supports both naming conventions)
   if (import.meta.env.VITE_API_BASE_URL) {
     return import.meta.env.VITE_API_BASE_URL;
   }
   
-  // In development, use localhost
-  if (import.meta.env.MODE === 'development') {
-    return import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
   }
   
-  // In production, try to use relative paths (if frontend and backend on same origin)
-  // Otherwise, must set VITE_API_BASE_URL in production environment
+  // In development, use localhost as fallback
+  if (import.meta.env.MODE === 'development') {
+    return 'http://localhost:5000';
+  }
+  
+  // In production, if no API URL is set, use relative paths (same origin)
   return '';
 };
 
